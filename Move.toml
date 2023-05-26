@@ -1,0 +1,9 @@
+[package]
+name = "words"
+version = "0.0.1"
+
+[dependencies]
+Sui = { git = "https://github.com/MystenLabs/sui.git", rev = "ae1212baf8f0837e25926d941db3d26a61c1bea2", subdir = "crates/sui-framework/packages/sui-framework" }
+
+[addresses]
+words = "0x0"
