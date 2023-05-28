@@ -11,12 +11,17 @@ module words::words2words{
   use words::pseudorandom;
   use sui::vec_map::{Self,VecMap};
   use sui::dynamic_field as df;
+  use sui::sui::SUI;
+  use sui::balance::{Self,Balance};
+  use sui::coin;
 
   // Parts of speech are 25 groups containing the words used for poeam construction
   const PARTS_OF_SPEECH : vector<vector<u8>> = vector[b"nouns_3_4_letters",b"nouns_5_6_letters",b"nouns_7_9_letters",b"verbs_action",b"verbs_past_tense_irregular",b"verbs_linking",b"verbs_helping",b"adjectives_3_4_letters",b"adjectives_5_6_letters",b"adjectives_7_8_letters",b"adverbs_2_5_letters",b"adverbs_6_7_letters",b"adverbs_8_9_letters",b"conjunctions_coordinating",b"conjunctions_subordinating",b"pronouns_group_1",b"pronouns_group_2",b"pronouns_group_3",b"prepositions_group_1",b"prepositions_group_2",b"prepositions_group_3",b"interjections",b"suffixes",b"articles",];
 
   struct WordsData has key, store {
     id : UID,
+    funds: Balance<SUI>,
+    admin: address
   }
 
   struct Pack has store{
@@ -78,6 +83,8 @@ module words::words2words{
 
     let wordsdata = WordsData{
     id: object::new(ctx),
+    funds: balance::zero(),
+    admin: tx_context::sender(ctx)
     };
 
     share_object(wordsdata);
@@ -117,6 +124,7 @@ module words::words2words{
   }
 
   public entry fun mintPack(pack_name: vector<u8>,wordsdata: &WordsData,ctx: &mut TxContext){
+    let sender = tx_context::sender(ctx);
     let pack_config = df::borrow<String,Pack>(&wordsdata.id,utf8(pack_name));
     let i = 0;
     while(i < vector::length(&PARTS_OF_SPEECH)){
@@ -129,19 +137,49 @@ module words::words2words{
       let j = 0;
       while(j < *part_of_speech_count){
            let length = vector::length<String>(&part_of_speech_words);
+           //print(&length);
            let index = random_index(length,ctx);
            let word = *vector::borrow<String>(&part_of_speech_words,index);
-           internal_mint_and_transfet_word(word,ctx);
+           print(&word);
+           internal_mint_and_transfet_word(sender,word,ctx);
+           vector::remove<String>(&mut part_of_speech_words,index);
            j = j +1;
        };
 
       };
-
       i = i + 1;
     };
   }
 
   // Internal OR Admin functionalities
+  public entry fun fiat_payment_mintPack(mintTo: address,pack_name: vector<u8>,wordsdata: &WordsData,ctx: &mut TxContext){
+    assert!( wordsdata.admin == tx_context::sender(ctx),0);
+    let pack_config = df::borrow<String,Pack>(&wordsdata.id,utf8(pack_name));
+    let i = 0;
+    while(i < vector::length(&PARTS_OF_SPEECH)){
+      let part_of_speech = *vector::borrow(&PARTS_OF_SPEECH,i);
+      let part_of_speech_count = vec_map::get(&pack_config.parts_of_speech,&utf8(part_of_speech));
+
+      if(df::exists_<String>(&wordsdata.id,utf8(part_of_speech))){
+
+      let part_of_speech_words = *df::borrow<String,vector<String>>(&wordsdata.id,utf8(part_of_speech)); 
+      let j = 0;
+      while(j < *part_of_speech_count){
+           let length = vector::length<String>(&part_of_speech_words);
+           //print(&length);
+           let index = random_index(length,ctx);
+           let word = *vector::borrow<String>(&part_of_speech_words,index);
+           print(&word);
+           internal_mint_and_transfet_word(mintTo,word,ctx);
+           vector::remove<String>(&mut part_of_speech_words,index);
+           j = j +1;
+       };
+
+      };
+      i = i + 1;
+    };
+  }
+
   public entry fun add_pack(pack_name: vector<u8>,price: u64, pack_pos_quantity: vector<u64>,wordsdata: &mut WordsData){
     let parts_of_speech = vec_map::empty();
     let i = 0;
@@ -163,10 +201,8 @@ module words::words2words{
     df::add(&mut wordsdata.id,utf8(part_of_speech),strings_vector);
   }
 
-  fun internal_mint_and_transfet_word(word: String,ctx: &mut TxContext){
-    let sender = tx_context::sender(ctx);
-    print(&word);
-    public_transfer(Word {id: object::new(ctx), word: word},sender);
+  fun internal_mint_and_transfet_word(mintTo: address,word: String,ctx: &mut TxContext){
+    public_transfer(Word {id: object::new(ctx), word: word},mintTo);
   }
 
   fun random_index(length: u64,ctx: &mut TxContext): u64{
@@ -174,6 +210,18 @@ module words::words2words{
                 length, &pseudorandom::rand_with_ctx(ctx),
             );
      rand_idx
+  }
+
+  public entry fun release_funds(wordsdata: &mut WordsData,ctx: &mut TxContext){
+    assert!(wordsdata.admin == tx_context::sender(ctx),0);
+    let total = balance::value<SUI>(&wordsdata.funds);
+    let take = coin::take<SUI>(&mut wordsdata.funds,total,ctx);
+    public_transfer(take,wordsdata.admin);
+  }
+
+  public entry fun  mutate_admin(new_admin: address,wordsdata: &mut WordsData,ctx: &mut TxContext){
+      assert!(wordsdata.admin == tx_context::sender(ctx) || @0x0 == tx_context::sender(ctx) ,0);
+      wordsdata.admin = new_admin;
   }
 
   #[test_only]
