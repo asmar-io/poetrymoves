@@ -34,6 +34,7 @@ module words::words2words{
   struct Word has key, store {
     id : UID,
     word: String,
+    part_of_speech: String
   }
 
   struct Sentence has key, store {
@@ -42,7 +43,8 @@ module words::words2words{
     sentence_test: String,
     background: String,
     created_at: u64,
-    words: vector<String>
+    words: vector<String>,
+    parts_of_speech: vector<String>
   }
 
   struct WORDS2WORDS has drop {}
@@ -97,11 +99,13 @@ module words::words2words{
     let sentence : String = utf8(b"");
     let sentence_test : String = utf8(b"");
     let sentence_words = vector::empty<String>();
+    let parts_of_speech = vector::empty<String>();
     //vector::reverse<Word>(&mut words);
     
     while(!vector::is_empty(&words)){
-      let Word { id, word } =  vector::pop_back<Word>(&mut words);
+      let Word { id, word, part_of_speech} =  vector::pop_back<Word>(&mut words);
       vector::push_back(&mut sentence_words,word);
+      vector::push_back(&mut parts_of_speech,part_of_speech);
       append(&mut sentence,word);  
       append(&mut sentence,utf8(b" "));  
 
@@ -113,16 +117,17 @@ module words::words2words{
     //print(&sentence_test);
     let created_at = clock::timestamp_ms(clock);
     let sender = tx_context::sender(ctx);
-    public_transfer(Sentence {id: object::new(ctx), sentence: sentence,sentence_test:sentence_test,background:utf8(b""),created_at:created_at, words: sentence_words},sender);
+    public_transfer(Sentence {id: object::new(ctx), sentence: sentence,sentence_test:sentence_test,background:utf8(b""),created_at:created_at, words: sentence_words,parts_of_speech: parts_of_speech},sender);
     vector::destroy_empty(words);
   }
 
   public entry fun sentence_to_words(sentence: Sentence,ctx: &mut TxContext) {
     let sender = tx_context::sender(ctx);
-    let Sentence {id, sentence: _,sentence_test: _,background:_,created_at:_, words} = sentence;
+    let Sentence {id, sentence: _,sentence_test: _,background:_,created_at:_, words,parts_of_speech} = sentence;
     while(!vector::is_empty<String>(&words)){
-      let word = vector::pop_back<String>(&mut words);
-      public_transfer(Word {id: object::new(ctx), word: word},sender);
+      let word = vector::pop_back<String>(&mut parts_of_speech);
+      let part_of_speech = vector::pop_back<String>(&mut words);
+      public_transfer(Word {id: object::new(ctx), word: word, part_of_speech: part_of_speech},sender);
     };
     object::delete(id);
   }
@@ -172,8 +177,8 @@ module words::words2words{
   }
 
   // Internal functionalities
-  fun internal_mint_and_transfet_word(mintTo: address,word: String,ctx: &mut TxContext){
-    public_transfer(Word {id: object::new(ctx), word: word},mintTo);
+  fun internal_mint_and_transfet_word(mintTo: address,word: String,part_of_speech: String,ctx: &mut TxContext){
+    public_transfer(Word {id: object::new(ctx), word: word, part_of_speech: part_of_speech},mintTo);
   }
 
   fun internal_mint_pack_and_transfet_words(mintTo: address,pack_name: vector<u8>,wordsdata: &WordsData,ctx: &mut TxContext){
@@ -193,7 +198,7 @@ module words::words2words{
            let index = random_index(length,ctx);
            let word = *vector::borrow<String>(&part_of_speech_words,index);
            print(&word);
-           internal_mint_and_transfet_word(mintTo,word,ctx);
+           internal_mint_and_transfet_word(mintTo,word,utf8(part_of_speech),ctx);
            vector::remove<String>(&mut part_of_speech_words,index);
            j = j +1;
        };
