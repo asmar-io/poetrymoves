@@ -14,6 +14,7 @@ module words::words2words{
   use sui::sui::SUI;
   use sui::balance::{Self,Balance};
   use sui::coin;
+  use sui::clock::{Self,Clock};
 
   // Parts of speech are 25 groups containing the words used for poeam construction
   const PARTS_OF_SPEECH : vector<vector<u8>> = vector[b"nouns_3_4_letters",b"nouns_5_6_letters",b"nouns_7_9_letters",b"verbs_action",b"verbs_past_tense_irregular",b"verbs_linking",b"verbs_helping",b"adjectives_3_4_letters",b"adjectives_5_6_letters",b"adjectives_7_8_letters",b"adverbs_2_5_letters",b"adverbs_6_7_letters",b"adverbs_8_9_letters",b"conjunctions_coordinating",b"conjunctions_subordinating",b"pronouns_group_1",b"pronouns_group_2",b"pronouns_group_3",b"prepositions_group_1",b"prepositions_group_2",b"prepositions_group_3",b"interjections",b"suffixes",b"articles",];
@@ -39,6 +40,8 @@ module words::words2words{
     id : UID,
     sentence: String,
     sentence_test: String,
+    background: String,
+    created_at: u64,
     words: vector<String>
   }
 
@@ -90,7 +93,7 @@ module words::words2words{
     share_object(wordsdata);
   }
 
-  public entry fun make_sentence(words: vector<Word>,ctx: &mut TxContext){
+  public entry fun make_sentence(words: vector<Word>,clock: &Clock,ctx: &mut TxContext){
     let sentence : String = utf8(b"");
     let sentence_test : String = utf8(b"");
     let sentence_words = vector::empty<String>();
@@ -108,14 +111,15 @@ module words::words2words{
     };
     print(&sentence);
     //print(&sentence_test);
+    let created_at = clock::timestamp_ms(clock);
     let sender = tx_context::sender(ctx);
-    public_transfer(Sentence {id: object::new(ctx), sentence: sentence,sentence_test:sentence_test, words: sentence_words},sender);
+    public_transfer(Sentence {id: object::new(ctx), sentence: sentence,sentence_test:sentence_test,background:utf8(b""),created_at:created_at, words: sentence_words},sender);
     vector::destroy_empty(words);
   }
 
   public entry fun sentence_to_words(sentence: Sentence,ctx: &mut TxContext) {
     let sender = tx_context::sender(ctx);
-    let Sentence {id, sentence: _,sentence_test: _, words} = sentence;
+    let Sentence {id, sentence: _,sentence_test: _,background:_,created_at:_, words} = sentence;
     while(!vector::is_empty<String>(&words)){
       let word = vector::pop_back<String>(&mut words);
       public_transfer(Word {id: object::new(ctx), word: word},sender);
@@ -125,35 +129,54 @@ module words::words2words{
 
   public entry fun mintPack(pack_name: vector<u8>,wordsdata: &WordsData,ctx: &mut TxContext){
     let sender = tx_context::sender(ctx);
-    let pack_config = df::borrow<String,Pack>(&wordsdata.id,utf8(pack_name));
-    let i = 0;
-    while(i < vector::length(&PARTS_OF_SPEECH)){
-      let part_of_speech = *vector::borrow(&PARTS_OF_SPEECH,i);
-      let part_of_speech_count = vec_map::get(&pack_config.parts_of_speech,&utf8(part_of_speech));
-
-      if(df::exists_<String>(&wordsdata.id,utf8(part_of_speech))){
-
-      let part_of_speech_words = *df::borrow<String,vector<String>>(&wordsdata.id,utf8(part_of_speech)); 
-      let j = 0;
-      while(j < *part_of_speech_count){
-           let length = vector::length<String>(&part_of_speech_words);
-           //print(&length);
-           let index = random_index(length,ctx);
-           let word = *vector::borrow<String>(&part_of_speech_words,index);
-           print(&word);
-           internal_mint_and_transfet_word(sender,word,ctx);
-           vector::remove<String>(&mut part_of_speech_words,index);
-           j = j +1;
-       };
-
-      };
-      i = i + 1;
-    };
+    internal_mint_pack_and_transfet_words(sender,pack_name,wordsdata,ctx);
   }
 
-  // Internal OR Admin functionalities
+  // Admin functionalities
   public entry fun fiat_payment_mintPack(mintTo: address,pack_name: vector<u8>,wordsdata: &WordsData,ctx: &mut TxContext){
     assert!( wordsdata.admin == tx_context::sender(ctx),0);
+    internal_mint_pack_and_transfet_words(mintTo,pack_name,wordsdata,ctx);
+  }
+
+  public entry fun add_pack(pack_name: vector<u8>,price: u64, pack_pos_quantity: vector<u64>,wordsdata: &mut WordsData){
+    let parts_of_speech = vec_map::empty();
+    let i = 0;
+    while(i < vector::length(&PARTS_OF_SPEECH)){
+      let part_of_speech = vector::borrow(&PARTS_OF_SPEECH,i);
+      let part_of_speech_quantity = vector::borrow(&pack_pos_quantity,i);
+      vec_map::insert(&mut parts_of_speech,utf8(*part_of_speech),*part_of_speech_quantity);
+      //print(&utf8(*part_of_speech));
+      i = i + 1;
+    };
+    df::add(&mut wordsdata.id,utf8(pack_name),Pack{ parts_of_speech: parts_of_speech, name:utf8(pack_name),price: price });
+  }
+
+  public entry fun add_part_of_speech_words(part_of_speech: vector<u8>,wordsdata: &mut WordsData, words: vector<vector<u8>>){
+    let strings_vector : vector<String> = vector::empty();
+    while (!vector::is_empty(&words)){
+          vector::push_back(&mut strings_vector,utf8(vector::pop_back(&mut words)));
+    };
+    df::add(&mut wordsdata.id,utf8(part_of_speech),strings_vector);
+  }
+
+  public entry fun release_funds(wordsdata: &mut WordsData,ctx: &mut TxContext){
+    assert!(wordsdata.admin == tx_context::sender(ctx),0);
+    let total = balance::value<SUI>(&wordsdata.funds);
+    let take = coin::take<SUI>(&mut wordsdata.funds,total,ctx);
+    public_transfer(take,wordsdata.admin);
+  }
+
+  public entry fun  mutate_admin(new_admin: address,wordsdata: &mut WordsData,ctx: &mut TxContext){
+      assert!(wordsdata.admin == tx_context::sender(ctx) || @0x0 == tx_context::sender(ctx) ,0);
+      wordsdata.admin = new_admin;
+  }
+
+  // Internal functionalities
+  fun internal_mint_and_transfet_word(mintTo: address,word: String,ctx: &mut TxContext){
+    public_transfer(Word {id: object::new(ctx), word: word},mintTo);
+  }
+
+  fun internal_mint_pack_and_transfet_words(mintTo: address,pack_name: vector<u8>,wordsdata: &WordsData,ctx: &mut TxContext){
     let pack_config = df::borrow<String,Pack>(&wordsdata.id,utf8(pack_name));
     let i = 0;
     while(i < vector::length(&PARTS_OF_SPEECH)){
@@ -180,48 +203,11 @@ module words::words2words{
     };
   }
 
-  public entry fun add_pack(pack_name: vector<u8>,price: u64, pack_pos_quantity: vector<u64>,wordsdata: &mut WordsData){
-    let parts_of_speech = vec_map::empty();
-    let i = 0;
-    while(i < vector::length(&PARTS_OF_SPEECH)){
-      let part_of_speech = vector::borrow(&PARTS_OF_SPEECH,i);
-      let part_of_speech_quantity = vector::borrow(&pack_pos_quantity,i);
-      vec_map::insert(&mut parts_of_speech,utf8(*part_of_speech),*part_of_speech_quantity);
-      //print(&utf8(*part_of_speech));
-      i = i + 1;
-    };
-    df::add(&mut wordsdata.id,utf8(pack_name),Pack{ parts_of_speech: parts_of_speech, name:utf8(pack_name),price: price });
-  }
-
-  public entry fun add_part_of_speech_words(part_of_speech: vector<u8>,wordsdata: &mut WordsData, words: vector<vector<u8>>){
-    let strings_vector : vector<String> = vector::empty();
-    while (!vector::is_empty(&words)){
-          vector::push_back(&mut strings_vector,utf8(vector::pop_back(&mut words)));
-    };
-    df::add(&mut wordsdata.id,utf8(part_of_speech),strings_vector);
-  }
-
-  fun internal_mint_and_transfet_word(mintTo: address,word: String,ctx: &mut TxContext){
-    public_transfer(Word {id: object::new(ctx), word: word},mintTo);
-  }
-
   fun random_index(length: u64,ctx: &mut TxContext): u64{
      let rand_idx = pseudorandom::select_u64(
                 length, &pseudorandom::rand_with_ctx(ctx),
             );
      rand_idx
-  }
-
-  public entry fun release_funds(wordsdata: &mut WordsData,ctx: &mut TxContext){
-    assert!(wordsdata.admin == tx_context::sender(ctx),0);
-    let total = balance::value<SUI>(&wordsdata.funds);
-    let take = coin::take<SUI>(&mut wordsdata.funds,total,ctx);
-    public_transfer(take,wordsdata.admin);
-  }
-
-  public entry fun  mutate_admin(new_admin: address,wordsdata: &mut WordsData,ctx: &mut TxContext){
-      assert!(wordsdata.admin == tx_context::sender(ctx) || @0x0 == tx_context::sender(ctx) ,0);
-      wordsdata.admin = new_admin;
   }
 
   #[test_only]
@@ -234,6 +220,7 @@ module words::words2words{
 #[test_only]
   module sui::words_test {
     use sui::test_scenario as ts;
+    use sui::clock;
     // use std::vector;
     //use std::debug::{print};
     use words::words2words::{Self,make_sentence,sentence_to_words,Word,Sentence,WordsData};
@@ -244,7 +231,7 @@ module words::words2words{
         //let addr3 = @0xC;
         let scenario = ts::begin(addr1);
         {
-            words2words::init_test(ts::ctx(&mut scenario));  
+            words2words::init_test(ts::ctx(&mut scenario)); 
         };
 
         ts::next_tx(&mut scenario, addr1);
@@ -303,7 +290,10 @@ module words::words2words{
             let word2 = ts::take_from_sender<Word>(&mut scenario);
             let word3 = ts::take_from_sender<Word>(&mut scenario);
             let word4 = ts::take_from_sender<Word>(&mut scenario);
-            make_sentence(vector[word,word2,word3,word4],ts::ctx(&mut scenario));
+            let clock = clock::create_for_testing(ts::ctx(&mut scenario));
+            clock::increment_for_testing(&mut clock,0);
+            make_sentence(vector[word,word2,word3,word4],&clock,ts::ctx(&mut scenario));
+            clock::destroy_for_testing(clock);
         };
 
         ts::next_tx(&mut scenario, addr1);
