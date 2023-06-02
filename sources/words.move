@@ -42,6 +42,7 @@ module words::words2words{
     sentence: String,
     sentence_test: String,
     background: String,
+    image_url: String,
     created_at: u64,
     words: vector<String>,
     parts_of_speech: vector<String>
@@ -61,7 +62,7 @@ module words::words2words{
             utf8(b"{word}"),
             utf8(b"{word}"),
             utf8(b"https://ui-avatars.com/api/?name={word}&length=20&size=512&font-size=0.1&bold=true&rounded=true"),
-            utf8(b"A word in the world of words"),
+            utf8(b"Word NFT"),
     ];
     
     let display = display::new_with_fields<Word>(&publisher, keys, values, ctx);
@@ -77,8 +78,8 @@ module words::words2words{
     let values = vector[
             utf8(b"{sentence}"),
             utf8(b"{sentence}"),
-            utf8(b"https://ui-avatars.com/api/?name={sentence_test}&length=20&size=512&font-size=0.06&bold=true&rounded=true"),
-            utf8(b"A sentence in the world of words"),
+            utf8(b"image_url"),
+            utf8(b"Poem NFT"),
     ];
     let display = display::new_with_fields<Sentence>(&publisher, keys, values, ctx);
     display::update_version(&mut display);
@@ -95,7 +96,7 @@ module words::words2words{
     share_object(wordsdata);
   }
 
-  public entry fun make_sentence(words: vector<Word>,clock: &Clock,ctx: &mut TxContext){
+  public entry fun make_sentence(words: vector<Word>,image_url: vector<u8>,clock: &Clock,ctx: &mut TxContext){
     let sentence : String = utf8(b"");
     let sentence_test : String = utf8(b"");
     let sentence_words = vector::empty<String>();
@@ -117,13 +118,13 @@ module words::words2words{
     //print(&sentence_test);
     let created_at = clock::timestamp_ms(clock);
     let sender = tx_context::sender(ctx);
-    public_transfer(Sentence {id: object::new(ctx), sentence: sentence,sentence_test:sentence_test,background:utf8(b""),created_at:created_at, words: sentence_words,parts_of_speech: parts_of_speech},sender);
+    public_transfer(Sentence {id: object::new(ctx), sentence: sentence,sentence_test:sentence_test,background:utf8(b""),image_url:utf8(image_url),created_at:created_at, words: sentence_words,parts_of_speech: parts_of_speech},sender);
     vector::destroy_empty(words);
   }
 
   public entry fun sentence_to_words(sentence: Sentence,ctx: &mut TxContext) {
     let sender = tx_context::sender(ctx);
-    let Sentence {id, sentence: _,sentence_test: _,background:_,created_at:_, words,parts_of_speech} = sentence;
+    let Sentence {id, sentence: _,sentence_test: _,background:_,image_url:_,created_at:_, words,parts_of_speech} = sentence;
     while(!vector::is_empty<String>(&words)){
       let word = vector::pop_back<String>(&mut parts_of_speech);
       let part_of_speech = vector::pop_back<String>(&mut words);
@@ -297,7 +298,7 @@ module words::words2words{
             let word4 = ts::take_from_sender<Word>(&mut scenario);
             let clock = clock::create_for_testing(ts::ctx(&mut scenario));
             clock::increment_for_testing(&mut clock,0);
-            make_sentence(vector[word,word2,word3,word4],&clock,ts::ctx(&mut scenario));
+            make_sentence(vector[word,word2,word3,word4],b"ipfs:://{cid}",&clock,ts::ctx(&mut scenario));
             clock::destroy_for_testing(clock);
         };
 
