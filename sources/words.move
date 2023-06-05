@@ -42,6 +42,8 @@ module words::words2words{
     sentence: String,
     sentence_test: String,
     background: String,
+    title: String,
+    author: String,
     image_url: String,
     created_at: u64,
     words: vector<String>,
@@ -96,7 +98,7 @@ module words::words2words{
     share_object(wordsdata);
   }
 
-  public entry fun make_sentence(words: vector<Word>,image_url: vector<u8>,clock: &Clock,ctx: &mut TxContext){
+  public entry fun make_sentence(words: vector<Word>,image_url: vector<u8>,background: vector<u8>,title: vector<u8>,author: vector<u8>,clock: &Clock,ctx: &mut TxContext){
     let sentence : String = utf8(b"");
     let sentence_test : String = utf8(b"");
     let sentence_words = vector::empty<String>();
@@ -111,20 +113,20 @@ module words::words2words{
       append(&mut sentence,utf8(b" "));  
 
       append(&mut sentence_test,word);  
-      append(&mut sentence_test,utf8(b"~"));   
+      append(&mut sentence_test,utf8(b"~"));
       object::delete(id);
     };
     print(&sentence);
     //print(&sentence_test);
     let created_at = clock::timestamp_ms(clock);
     let sender = tx_context::sender(ctx);
-    public_transfer(Sentence {id: object::new(ctx), sentence: sentence,sentence_test:sentence_test,background:utf8(b""),image_url:utf8(image_url),created_at:created_at, words: sentence_words,parts_of_speech: parts_of_speech},sender);
+    public_transfer(Sentence {id: object::new(ctx), sentence: sentence,sentence_test:sentence_test,background:utf8(background),title:utf8(title),author:utf8(author),image_url:utf8(image_url),created_at:created_at, words: sentence_words,parts_of_speech: parts_of_speech},sender);
     vector::destroy_empty(words);
   }
 
   public entry fun sentence_to_words(sentence: Sentence,ctx: &mut TxContext) {
     let sender = tx_context::sender(ctx);
-    let Sentence {id, sentence: _,sentence_test: _,background:_,image_url:_,created_at:_, words,parts_of_speech} = sentence;
+    let Sentence {id, sentence: _,sentence_test: _,background:_,title:_,author:_,image_url:_,created_at:_, words,parts_of_speech} = sentence;
     while(!vector::is_empty<String>(&words)){
       let word = vector::pop_back<String>(&mut parts_of_speech);
       let part_of_speech = vector::pop_back<String>(&mut words);
@@ -195,7 +197,6 @@ module words::words2words{
       let j = 0;
       while(j < *part_of_speech_count){
            let length = vector::length<String>(&part_of_speech_words);
-           //print(&length);
            let index = random_index(length,ctx);
            let word = *vector::borrow<String>(&part_of_speech_words,index);
            print(&word);
@@ -274,7 +275,7 @@ module words::words2words{
            words2words::add_part_of_speech_words(b"interjections",&mut wordsdata, vector[b"aha",b"ahem",b"ahhh",b"ahoy",b"alas",b"aw",b"bam",b"blah",b"boo",b"bravo",b"brrr",b"congrats",b"darn",b"drat",b"duh",b"eeek",b"eh",b"eureka",b"fiddlesticks",b"gee",b"golly",b"goodbye",b"gosh",b"ha-ha",b"hello",b"hey",b"hmm",b"holy cow",b"humph",b"hooray",b"oh",b"oops",b"ouch",b"phew",b"phooey",b"shh",b"shoo",b"there",b"ugh",b"uh-oh",b"wahoo",b"whoa",b"whoops",b"wow",b"yeah",b"yes",b"yikes",b"yippee",b"yo",b"yuck"]);
            
            words2words::add_part_of_speech_words(b"suffixes",&mut wordsdata, vector[b"ed",b"es",b"s",b"ly",b"ing",b"er",b"est",b"y",b"d"]);
-           words2words::add_part_of_speech_words(b"articles",&mut wordsdata, vector[b"the",b"a",b"an"]);
+           words2words::add_part_of_speech_words(b"articles",&mut wordsdata, vector[b"the",b"a",b"an",b"the",b"a",b"an"]);
            
            words2words::add_pack(b"BASIC",1_000_000_000,vector[1,2,1,3,1,1,1,2,3,2,1,2,1,1,0,1,1,0,1,1,0,1,3,3],&mut wordsdata);
            words2words::add_pack(b"BLACK TURTLENECK",2_000_000_000,vector[3,4,2,5,2,2,2,4,5,5,2,3,2,2,2,3,2,1,2,1,1,2,5,4],&mut wordsdata);
@@ -286,7 +287,7 @@ module words::words2words{
         ts::next_tx(&mut scenario, addr1);
         {  
            let wordsdata = ts::take_shared<WordsData>(&mut scenario);
-           words2words::mintPack(b"BASIC",&wordsdata,ts::ctx(&mut scenario));
+           words2words::mintPack(b"OPEN MIC NIGHT",&wordsdata,ts::ctx(&mut scenario));
            ts::return_shared(wordsdata);
         };
 
@@ -298,7 +299,7 @@ module words::words2words{
             let word4 = ts::take_from_sender<Word>(&mut scenario);
             let clock = clock::create_for_testing(ts::ctx(&mut scenario));
             clock::increment_for_testing(&mut clock,0);
-            make_sentence(vector[word,word2,word3,word4],b"ipfs:://{cid}",&clock,ts::ctx(&mut scenario));
+            make_sentence(vector[word,word2,word3,word4],b"ipfs:://{cid}",b"refrigerator",b"My First Poeam NFT",b"Bob",&clock,ts::ctx(&mut scenario));
             clock::destroy_for_testing(clock);
         };
 
@@ -316,4 +317,5 @@ module words::words2words{
 
         ts::end(scenario);
   }
+
 }
