@@ -73,14 +73,19 @@ module words::words2words{
 
     let keys = vector[
             utf8(b"name"),
-            utf8(b"sentence"),
+            utf8(b"poem"),
             utf8(b"image_url"),
+            utf8(b"title"),
+            utf8(b"author"),
+            utf8(b"background"),
             utf8(b"description"),
     ];
     let values = vector[
             utf8(b"{sentence}"),
             utf8(b"{sentence}"),
-            utf8(b"image_url"),
+            utf8(b"{title}"),
+            utf8(b"{author}"),
+            utf8(b"{background}"),
             utf8(b"Poem NFT"),
     ];
     let display = display::new_with_fields<Sentence>(&publisher, keys, values, ctx);
