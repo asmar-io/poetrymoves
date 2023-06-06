@@ -83,6 +83,7 @@ module words::words2words{
     let values = vector[
             utf8(b"{sentence}"),
             utf8(b"{sentence}"),
+            utf8(b"{image_url}"),
             utf8(b"{title}"),
             utf8(b"{author}"),
             utf8(b"{background}"),
@@ -133,8 +134,8 @@ module words::words2words{
     let sender = tx_context::sender(ctx);
     let Sentence {id, sentence: _,sentence_test: _,background:_,title:_,author:_,image_url:_,created_at:_, words,parts_of_speech} = sentence;
     while(!vector::is_empty<String>(&words)){
-      let word = vector::pop_back<String>(&mut parts_of_speech);
-      let part_of_speech = vector::pop_back<String>(&mut words);
+      let part_of_speech = vector::pop_back<String>(&mut parts_of_speech);
+      let word = vector::pop_back<String>(&mut words);
       public_transfer(Word {id: object::new(ctx), word: word, part_of_speech: part_of_speech},sender);
     };
     object::delete(id);
@@ -142,13 +143,13 @@ module words::words2words{
 
   public entry fun mintPack(pack_name: vector<u8>,wordsdata: &WordsData,ctx: &mut TxContext){
     let sender = tx_context::sender(ctx);
-    internal_mint_pack_and_transfet_words(sender,pack_name,wordsdata,ctx);
+    internal_mint_pack_and_transfer_words(sender,pack_name,wordsdata,ctx);
   }
 
   // Admin functionalities
   public entry fun fiat_payment_mintPack(mintTo: address,pack_name: vector<u8>,wordsdata: &WordsData,ctx: &mut TxContext){
     assert!( wordsdata.admin == tx_context::sender(ctx),0);
-    internal_mint_pack_and_transfet_words(mintTo,pack_name,wordsdata,ctx);
+    internal_mint_pack_and_transfer_words(mintTo,pack_name,wordsdata,ctx);
   }
 
   public entry fun add_pack(pack_name: vector<u8>,price: u64, pack_pos_quantity: vector<u64>,wordsdata: &mut WordsData){
@@ -185,11 +186,11 @@ module words::words2words{
   }
 
   // Internal functionalities
-  fun internal_mint_and_transfet_word(mintTo: address,word: String,part_of_speech: String,ctx: &mut TxContext){
+  fun internal_mint_and_transfer_word(mintTo: address,word: String,part_of_speech: String,ctx: &mut TxContext){
     public_transfer(Word {id: object::new(ctx), word: word, part_of_speech: part_of_speech},mintTo);
   }
 
-  fun internal_mint_pack_and_transfet_words(mintTo: address,pack_name: vector<u8>,wordsdata: &WordsData,ctx: &mut TxContext){
+  fun internal_mint_pack_and_transfer_words(mintTo: address,pack_name: vector<u8>,wordsdata: &WordsData,ctx: &mut TxContext){
     let pack_config = df::borrow<String,Pack>(&wordsdata.id,utf8(pack_name));
     let i = 0;
     while(i < vector::length(&PARTS_OF_SPEECH)){
@@ -205,7 +206,7 @@ module words::words2words{
            let index = random_index(length,ctx);
            let word = *vector::borrow<String>(&part_of_speech_words,index);
            print(&word);
-           internal_mint_and_transfet_word(mintTo,word,utf8(part_of_speech),ctx);
+           internal_mint_and_transfer_word(mintTo,word,utf8(part_of_speech),ctx);
            vector::remove<String>(&mut part_of_speech_words,index);
            j = j +1;
        };
