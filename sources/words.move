@@ -18,7 +18,7 @@ module words::words2words{
 
   // Parts of speech are 25 groups containing the words used for poeam construction
   const PARTS_OF_SPEECH : vector<vector<u8>> = vector[b"nouns_3_4_letters",b"nouns_5_6_letters",b"nouns_7_9_letters",b"verbs_action",b"verbs_past_tense_irregular",b"verbs_linking",b"verbs_helping",b"adjectives_3_4_letters",b"adjectives_5_6_letters",b"adjectives_7_8_letters",b"adverbs_2_5_letters",b"adverbs_6_7_letters",b"adverbs_8_9_letters",b"conjunctions_coordinating",b"conjunctions_subordinating",b"pronouns_group_1",b"pronouns_group_2",b"pronouns_group_3",b"prepositions_group_1",b"prepositions_group_2",b"prepositions_group_3",b"interjections",b"suffixes",b"articles",];
-  const BASE_PARTS_OF_SPEECH : vector<vector<u8>> = vector[b"noun",b"noun",b"noun",b"verb",b"verb",b"verb",b"verb",b"adjective",b"adjective",b"adjective",b"adverb",b"adverbs",b"adverb",b"conjunction",b"conjunction",b"pronoun",b"pronoun",b"pronoun",b"preposition",b"preposition",b"preposition",b"interjection",b"suffixe",b"article",];
+  const BASE_PARTS_OF_SPEECH : vector<vector<u8>> = vector[b"noun",b"noun",b"noun",b"verb",b"verb",b"verb",b"verb",b"adjective",b"adjective",b"adjective",b"adverb",b"adverbs",b"adverb",b"conjunction",b"conjunction",b"pronoun",b"pronoun",b"pronoun",b"preposition",b"preposition",b"preposition",b"interjection",b"suffix",b"article",];
 
   struct WordsData has key, store {
     id : UID,
@@ -63,7 +63,7 @@ module words::words2words{
     let values = vector[
             utf8(b"{word}"),
             utf8(b"{word}"),
-            utf8(b"https://ui-avatars.com/api/?name={word}&length=20&size=512&font-size=0.1&bold=true&rounded=true&background=efefef"),
+            utf8(b"https://ui-avatars.com/api/?name={word}&length=20&size=512&font-size=0.1&bold=true&background=efefef"),
             utf8(b"Word NFT"),
     ];
     
