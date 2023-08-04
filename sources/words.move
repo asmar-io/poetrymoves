@@ -34,23 +34,26 @@ module words::words2words{
     parts_of_speech: VecMap<String,u64>,
     name: String,
     price: u64,
+    background: String
   }
 
   struct Word has key, store {
     id : UID,
     word: String,
-    part_of_speech: String
+    part_of_speech: String,
+    background: String
   }
 
   struct Sentence has key, store {
     id : UID,
     sentence: String,
-    background: String,
+    background_image: String,
     title: String,
     author: String,
     image_url: String,
     created_at: u64,
     words: vector<String>,
+    words_background: String,
     parts_of_speech: vector<String>
   }
 
@@ -67,7 +70,7 @@ module words::words2words{
     let values = vector[
             utf8(b"{word}"),
             utf8(b"{word}"),
-            utf8(b"https://ui-avatars.com/api/?name={word}&length=20&size=512&font-size=0.1&bold=true&background=efefef"),
+            utf8(b"https://ui-avatars.com/api/?name={word}&length=20&size=512&font-size=0.1&bold=true&background={background}"),
             utf8(b"Word NFT"),
     ];
     
@@ -125,9 +128,10 @@ module words::words2words{
     let sentence_words = vector::empty<String>();
     let parts_of_speech = vector::empty<String>();
     //vector::reverse<Word>(&mut words);
-    
+    let words_background : String = utf8(b"");
     while(!vector::is_empty(&words)){
-      let Word { id, word, part_of_speech} =  vector::pop_back<Word>(&mut words);
+      let Word { id, word, part_of_speech, background} =  vector::pop_back<Word>(&mut words);
+      words_background = background;
       vector::push_back(&mut sentence_words,word);
       vector::push_back(&mut parts_of_speech,part_of_speech);
       append(&mut sentence,word);  
@@ -137,7 +141,7 @@ module words::words2words{
     print(&sentence);
     let created_at = clock::timestamp_ms(clock);
     let sender = tx_context::sender(ctx);
-    public_transfer(Sentence {id: object::new(ctx), sentence: sentence,background:utf8(background),title:utf8(title),author:utf8(author),image_url:utf8(image_url),created_at:created_at, words: sentence_words,parts_of_speech: parts_of_speech},sender);
+    public_transfer(Sentence {id: object::new(ctx), sentence: sentence,background_image:utf8(background),title:utf8(title),author:utf8(author),image_url:utf8(image_url),created_at:created_at, words: sentence_words,words_background,parts_of_speech: parts_of_speech},sender);
     vector::destroy_empty(words);
   }
 
@@ -147,12 +151,12 @@ module words::words2words{
   */
   public entry fun sentence_to_words(sentence: Sentence,ctx: &mut TxContext) {
     let sender = tx_context::sender(ctx);
-    let Sentence {id, sentence: _,background:_,title:_,author:_,image_url:_,created_at:_, words,parts_of_speech} = sentence;
+    let Sentence {id, sentence: _,background_image:_,title:_,author:_,image_url:_,created_at:_, words,words_background,parts_of_speech} = sentence;
     while(!vector::is_empty<String>(&words)){
       let part_of_speech = vector::pop_back<String>(&mut parts_of_speech);
       let word = vector::pop_back<String>(&mut words);
       //public_transfer(Word {id: object::new(ctx), word: word, part_of_speech: part_of_speech},sender);
-      internal_mint_and_transfer_word(sender,word,part_of_speech,ctx);
+      internal_mint_and_transfer_word(sender,word,part_of_speech,words_background,ctx);
     };
     object::delete(id);
   }
@@ -169,7 +173,7 @@ module words::words2words{
     internal_mint_pack_and_transfer_words(mintTo,pack_name,wordsdata,coin,ctx);
   }
 
-  public entry fun add_pack(pack_name: vector<u8>,price: u64, pack_pos_quantity: vector<u64>,wordsdata: &mut WordsData,ctx: &mut TxContext){
+  public entry fun add_pack(pack_name: vector<u8>,price: u64,background_image: vector<u8>, pack_pos_quantity: vector<u64>,wordsdata: &mut WordsData,ctx: &mut TxContext){
     assert!(wordsdata.admin == tx_context::sender(ctx),ENotOwner);
     let parts_of_speech = vec_map::empty();
     let i = 0;
@@ -180,7 +184,7 @@ module words::words2words{
       //print(&utf8(*part_of_speech));
       i = i + 1;
     };
-    df::add(&mut wordsdata.id,utf8(pack_name),Pack{ parts_of_speech: parts_of_speech, name:utf8(pack_name),price: price });
+    df::add(&mut wordsdata.id,utf8(pack_name),Pack{ parts_of_speech: parts_of_speech, name:utf8(pack_name),price: price,background:utf8(background_image) });
   }
 
   public entry fun add_part_of_speech_words(part_of_speech: vector<u8>,wordsdata: &mut WordsData, words: vector<vector<u8>>,ctx: &mut TxContext){
@@ -210,8 +214,8 @@ module words::words2words{
   }
 
   // Internal Contract functionalities
-  fun internal_mint_and_transfer_word(mintTo: address,word: String,part_of_speech: String,ctx: &mut TxContext){
-    public_transfer(Word {id: object::new(ctx), word: word, part_of_speech: part_of_speech},mintTo);
+  fun internal_mint_and_transfer_word(mintTo: address,word: String,part_of_speech: String,background: String,ctx: &mut TxContext){
+    public_transfer(Word {id: object::new(ctx), word: word, part_of_speech: part_of_speech,background:background},mintTo);
   }
 
   fun internal_mint_pack_and_transfer_words(mintTo: address,pack_name: vector<u8>,wordsdata: &WordsData,coin: Coin<SUI>,ctx: &mut TxContext){
@@ -233,7 +237,7 @@ module words::words2words{
            let word = *vector::borrow<String>(&part_of_speech_words,index);
            //print(&word);
            //print(&utf8(base_part_of_speech));
-           internal_mint_and_transfer_word(mintTo,word,utf8(base_part_of_speech),ctx);
+           internal_mint_and_transfer_word(mintTo,word,utf8(base_part_of_speech),pack_config.background,ctx);
            vector::remove<String>(&mut part_of_speech_words,index);
            j = j +1;
        };
@@ -313,9 +317,9 @@ module words::words2words{
            words2words::add_part_of_speech_words(b"suffixes",&mut wordsdata, vector[b"ed",b"es",b"s",b"ly",b"ing",b"er",b"est",b"y",b"d"],ts::ctx(&mut scenario));
            words2words::add_part_of_speech_words(b"articles",&mut wordsdata, vector[b"the",b"a",b"an",b"the",b"a",b"an"],ts::ctx(&mut scenario));
            
-           words2words::add_pack(b"BASIC",1_000_000_000,vector[1,2,1,3,1,1,1,2,3,2,1,2,1,1,0,1,1,0,1,1,0,1,3,3],&mut wordsdata,ts::ctx(&mut scenario));
-           words2words::add_pack(b"BLACK TURTLENECK",2_000_000_000,vector[3,4,2,5,2,2,2,4,5,5,2,3,2,2,2,3,2,1,2,1,1,2,5,4],&mut wordsdata,ts::ctx(&mut scenario));
-           words2words::add_pack(b"OPEN MIC NIGHT",3_000_000_000,vector[5,6,3,6,3,3,3,6,7,6,3,5,4,4,3,5,3,2,3,2,1,3,7,6],&mut wordsdata,ts::ctx(&mut scenario));
+           words2words::add_pack(b"BASIC",1_000_000_000,b"ffff",vector[1,2,1,3,1,1,1,2,3,2,1,2,1,1,0,1,1,0,1,1,0,1,3,3],&mut wordsdata,ts::ctx(&mut scenario));
+           words2words::add_pack(b"BLACK TURTLENECK",2_000_000_000,b"ffff",vector[3,4,2,5,2,2,2,4,5,5,2,3,2,2,2,3,2,1,2,1,1,2,5,4],&mut wordsdata,ts::ctx(&mut scenario));
+           words2words::add_pack(b"OPEN MIC NIGHT",3_000_000_000,b"ffff",vector[5,6,3,6,3,3,3,6,7,6,3,5,4,4,3,5,3,2,3,2,1,3,7,6],&mut wordsdata,ts::ctx(&mut scenario));
 
            ts::return_shared(wordsdata);
         };
