@@ -32,6 +32,7 @@ module words::words2words{
 
   struct Pack has store{
     parts_of_speech: VecMap<String,u64>,
+    words: VecMap<String,String>,
     name: String,
     price: u64,
     background: String
@@ -168,7 +169,7 @@ module words::words2words{
   * @param wordsdata: the global shared object words data, eg: 0xeb16803bfb61017ffa523dc3bb81e92b64e6b43a8d705203631e10f8daa24e25
   * @param coin: the payment coin object address, eg: 0xbb16803bfb61017ffa523dc3bb81e92b64e6b43a8d705203631e10f8daa24e25
   */
-  public entry fun mintPack(mintTo: address,pack_name: vector<u8>,wordsdata: &WordsData,coin: Coin<SUI>,ctx: &mut TxContext){
+  public entry fun mintPack(mintTo: address,pack_name: vector<u8>,wordsdata: &mut WordsData,coin: Coin<SUI>,ctx: &mut TxContext){
     //let sender = tx_context::sender(ctx);
     internal_mint_pack_and_transfer_words(mintTo,pack_name,wordsdata,coin,ctx);
   }
@@ -176,6 +177,7 @@ module words::words2words{
   public entry fun add_pack(pack_name: vector<u8>,price: u64,background_image: vector<u8>, pack_pos_quantity: vector<u64>,wordsdata: &mut WordsData,ctx: &mut TxContext){
     assert!(wordsdata.admin == tx_context::sender(ctx),ENotOwner);
     let parts_of_speech = vec_map::empty();
+    let words = vec_map::empty();
     let i = 0;
     while(i < vector::length(&PARTS_OF_SPEECH)){
       let part_of_speech = vector::borrow(&PARTS_OF_SPEECH,i);
@@ -184,7 +186,28 @@ module words::words2words{
       //print(&utf8(*part_of_speech));
       i = i + 1;
     };
-    df::add(&mut wordsdata.id,utf8(pack_name),Pack{ parts_of_speech: parts_of_speech, name:utf8(pack_name),price: price,background:utf8(background_image) });
+    df::add(&mut wordsdata.id,utf8(pack_name),Pack{ parts_of_speech: parts_of_speech,words:words, name:utf8(pack_name),price: price,background:utf8(background_image) });
+  }
+
+  public entry fun add_booster_pack(pack_name: vector<u8>,price: u64,background_image: vector<u8>, pack_words: vector<vector<u8>>,pack_parts: vector<vector<u8>>,wordsdata: &mut WordsData,ctx: &mut TxContext){
+    assert!(wordsdata.admin == tx_context::sender(ctx),ENotOwner);
+    let parts_of_speech = vec_map::empty();
+    let words = vec_map::empty();
+    let i = 0;
+    while(i < vector::length(&pack_words)){
+      let word = vector::borrow(&pack_words,i);
+      let part_of_speech = vector::borrow(&pack_parts,i);
+      //vector::insert(&mut words,utf8(*word),i);
+      vec_map::insert(&mut words,utf8(*word),utf8(*part_of_speech));
+      //print(&utf8(*part_of_speech));
+      i = i + 1;
+    };
+    df::add(&mut wordsdata.id,utf8(pack_name),Pack{ parts_of_speech: parts_of_speech,words:words, name:utf8(pack_name),price: price,background:utf8(background_image) });
+  }
+
+  public entry fun mintBoosterPack(mintTo: address,pack_name: vector<u8>,wordsdata: &mut WordsData,coin: Coin<SUI>,ctx: &mut TxContext){
+    //let sender = tx_context::sender(ctx);
+    internal_mint_booster_pack_and_transfer_words(mintTo,pack_name,wordsdata,coin,ctx);
   }
 
   public entry fun add_part_of_speech_words(part_of_speech: vector<u8>,wordsdata: &mut WordsData, words: vector<vector<u8>>,ctx: &mut TxContext){
@@ -218,7 +241,7 @@ module words::words2words{
     public_transfer(Word {id: object::new(ctx), word: word, part_of_speech: part_of_speech,background:background},mintTo);
   }
 
-  fun internal_mint_pack_and_transfer_words(mintTo: address,pack_name: vector<u8>,wordsdata: &WordsData,coin: Coin<SUI>,ctx: &mut TxContext){
+  fun internal_mint_pack_and_transfer_words(mintTo: address,pack_name: vector<u8>,wordsdata: &mut WordsData,coin: Coin<SUI>,ctx: &mut TxContext){
     let pack_config = df::borrow<String,Pack>(&wordsdata.id,utf8(pack_name));
     assert!(pack_config.price == coin::value(&coin), EAmountIncorrect);
     let i = 0;
@@ -245,7 +268,23 @@ module words::words2words{
       };
       i = i + 1;
     };
-    public_transfer(coin,wordsdata.beneficiary);
+    //public_transfer(coin,wordsdata.beneficiary);
+    coin::put<SUI>(&mut wordsdata.funds,coin);
+  }
+
+  fun internal_mint_booster_pack_and_transfer_words(mintTo: address,pack_name: vector<u8>,wordsdata: &mut WordsData,coin: Coin<SUI>,ctx: &mut TxContext){
+    let pack_config = df::borrow<String,Pack>(&wordsdata.id,utf8(pack_name));
+    assert!(pack_config.price == coin::value(&coin), EAmountIncorrect);
+    let i = 0;
+    let keys = vec_map::keys(&pack_config.words);
+    while(i < vector::length(&keys)){
+      let word = *vector::borrow(&keys,i);
+      let part = *vec_map::get(&pack_config.words,&word);
+      internal_mint_and_transfer_word(mintTo,word,part,pack_config.background,ctx);
+      i = i + 1;
+    };
+    //public_transfer(coin,wordsdata.beneficiary);
+    coin::put<SUI>(&mut wordsdata.funds,coin);
   }
 
   fun random_index(length: u64,ctx: &mut TxContext): u64{
@@ -321,6 +360,8 @@ module words::words2words{
            words2words::add_pack(b"BLACK TURTLENECK",2_000_000_000,b"ffff",vector[3,4,2,5,2,2,2,4,5,5,2,3,2,2,2,3,2,1,2,1,1,2,5,4],&mut wordsdata,ts::ctx(&mut scenario));
            words2words::add_pack(b"OPEN MIC NIGHT",3_000_000_000,b"ffff",vector[5,6,3,6,3,3,3,6,7,6,3,5,4,4,3,5,3,2,3,2,1,3,7,6],&mut wordsdata,ts::ctx(&mut scenario));
 
+           words2words::add_booster_pack(b"BULLSHARK",3_000_000_000,b"000",vector[b"Sui",b"blockchain",b"move",b"digital"],vector[b"NOUN",b"ADJECTIVE",b"ADVERB",b"SUFFIX"],&mut wordsdata,ts::ctx(&mut scenario));
+
            ts::return_shared(wordsdata);
         };
 
@@ -328,7 +369,8 @@ module words::words2words{
         {  
            let wordsdata = ts::take_shared<WordsData>(&mut scenario);
            let coin = coin::mint_for_testing<SUI>(3_000_000_000, ts::ctx(&mut scenario));
-           words2words::mintPack(addr2,b"OPEN MIC NIGHT",&wordsdata,coin,ts::ctx(&mut scenario));
+           //words2words::mintPack(addr2,b"OPEN MIC NIGHT",&wordsdata,coin,ts::ctx(&mut scenario));
+           words2words::mintBoosterPack(addr2,b"BULLSHARK",&mut wordsdata,coin,ts::ctx(&mut scenario));
            //words2words::randomly_mint_part_of_speech_words(addr2,b"nouns_3_4_letters",b"OPEN MIC NIGHT",&wordsdata,ts::ctx(&mut scenario));
            //words2words::randomly_mint_word(addr2,b"nouns_3_4_letters",&wordsdata,ts::ctx(&mut scenario));
            ts::return_shared(wordsdata);
