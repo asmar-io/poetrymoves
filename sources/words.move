@@ -30,7 +30,7 @@ module words::words2words{
     beneficiary: address,
   }
 
-  struct Pack has store{
+  struct Pack has store, drop{
     parts_of_speech: VecMap<String,u64>,
     words: VecMap<String,vector<String>>,
     name: String,
@@ -254,6 +254,11 @@ module words::words2words{
       wordsdata.beneficiary = new_beneficiary;
   }
 
+  public entry fun end_pack(pack_name: vector<u8>,wordsdata: &mut WordsData,ctx: &mut TxContext){
+    assert!(wordsdata.admin == tx_context::sender(ctx) ,ENotOwner);
+    df::remove<String,Pack>(&mut wordsdata.id,utf8(pack_name));
+  }
+
   // Internal Contract functionalities
   fun internal_mint_and_transfer_word(mintTo: address,word: String,part_of_speech: String,background: String,pack: String,ctx: &mut TxContext){
     public_transfer(Word {id: object::new(ctx), word: word, part_of_speech: part_of_speech,background:background,pack:pack},mintTo);
@@ -406,6 +411,7 @@ module words::words2words{
            words2words::mintBoosterPack(addr2,b"CRYPTO PACK",&mut wordsdata,coin,ts::ctx(&mut scenario));
            //words2words::randomly_mint_part_of_speech_words(addr2,b"nouns_3_4_letters",b"OPEN MIC NIGHT",&wordsdata,ts::ctx(&mut scenario));
            //words2words::randomly_mint_word(addr2,b"nouns_3_4_letters",&wordsdata,ts::ctx(&mut scenario));
+           words2words::end_pack(b"CRYPTO PACK",&mut wordsdata,ts::ctx(&mut scenario));
            ts::return_shared(wordsdata);
         };
 
