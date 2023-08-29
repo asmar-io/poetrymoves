@@ -55,7 +55,6 @@ module words::words2words{
     image_url: String,
     created_at: u64,
     words: vector<String>,
-    words_background: String,
     parts_of_speech: vector<String>,
     words_packs: vector<String>,
     words_backgrounds: vector<String>,
@@ -134,13 +133,12 @@ module words::words2words{
     let words_packs = vector::empty<String>();
     let words_backgrounds  = vector::empty<String>();
     //vector::reverse<Word>(&mut words);
-    let words_background : String = utf8(b"");
     while(!vector::is_empty(&words)){
       let Word { id, word, part_of_speech, background, pack} =  vector::pop_back<Word>(&mut words);
-      words_background = background;
       vector::push_back(&mut sentence_words,word);
       vector::push_back(&mut parts_of_speech,part_of_speech);
       vector::push_back(&mut words_packs,pack);
+      vector::push_back(&mut words_backgrounds,background);
       append(&mut sentence,word);  
       append(&mut sentence,utf8(b" "));
       object::delete(id);
@@ -148,7 +146,7 @@ module words::words2words{
     print(&sentence);
     let created_at = clock::timestamp_ms(clock);
     let sender = tx_context::sender(ctx);
-    public_transfer(Sentence {id: object::new(ctx), sentence: sentence,background_image:utf8(background),title:utf8(title),author:utf8(author),image_url:utf8(image_url),created_at:created_at, words: sentence_words,words_background,parts_of_speech: parts_of_speech,words_packs:words_packs,words_backgrounds:words_backgrounds},sender);
+    public_transfer(Sentence {id: object::new(ctx), sentence: sentence,background_image:utf8(background),title:utf8(title),author:utf8(author),image_url:utf8(image_url),created_at:created_at, words: sentence_words,parts_of_speech: parts_of_speech,words_packs:words_packs,words_backgrounds:words_backgrounds},sender);
     vector::destroy_empty(words);
   }
 
@@ -158,13 +156,14 @@ module words::words2words{
   */
   public entry fun sentence_to_words(sentence: Sentence,ctx: &mut TxContext) {
     let sender = tx_context::sender(ctx);
-    let Sentence {id, sentence: _,background_image:_,title:_,author:_,image_url:_,created_at:_, words,words_background,parts_of_speech,words_packs,words_backgrounds:_} = sentence;
+    let Sentence {id, sentence: _,background_image:_,title:_,author:_,image_url:_,created_at:_, words,parts_of_speech,words_packs,words_backgrounds} = sentence;
     while(!vector::is_empty<String>(&words)){
       let part_of_speech = vector::pop_back<String>(&mut parts_of_speech);
       let pack = vector::pop_back<String>(&mut words_packs);
       let word = vector::pop_back<String>(&mut words);
+      let word_background = vector::pop_back<String>(&mut words_backgrounds);
       //public_transfer(Word {id: object::new(ctx), word: word, part_of_speech: part_of_speech},sender);
-      internal_mint_and_transfer_word(sender,word,part_of_speech,words_background,pack,ctx);
+      internal_mint_and_transfer_word(sender,word,part_of_speech,word_background,pack,ctx);
     };
     object::delete(id);
   }
