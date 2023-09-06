@@ -238,7 +238,7 @@ module words::words2words{
   }
 
   public entry fun release_funds(wordsdata: &mut WordsData,ctx: &mut TxContext){
-    assert!(wordsdata.beneficiary == tx_context::sender(ctx),ENotOwner);
+    assert!(wordsdata.admin == tx_context::sender(ctx),ENotOwner);
     let total = balance::value<SUI>(&wordsdata.funds);
     let take = coin::take<SUI>(&mut wordsdata.funds,total,ctx);
     public_transfer(take,wordsdata.beneficiary);
@@ -283,7 +283,7 @@ module words::words2words{
            let word = *vector::borrow<String>(&part_of_speech_words,index);
            //print(&word);
            //print(&utf8(base_part_of_speech));
-           internal_mint_and_transfer_word(mintTo,word,utf8(base_part_of_speech),pack_config.background,pack_config.name,ctx);
+           internal_mint_and_transfer_word(mintTo,word,utf8(base_part_of_speech),pack_config.background,utf8(b"Basic"),ctx);
            vector::remove<String>(&mut part_of_speech_words,index);
            j = j +1;
        };
@@ -406,9 +406,9 @@ module words::words2words{
         ts::next_tx(&mut scenario, addr1);
         {  
            let wordsdata = ts::take_shared<WordsData>(&mut scenario);
-           let coin = coin::mint_for_testing<SUI>(1_000_000_000, ts::ctx(&mut scenario));
-           //words2words::mintPack(addr2,b"OPEN MIC NIGHT",&wordsdata,coin,ts::ctx(&mut scenario));
-           words2words::mintBoosterPack(addr2,b"CRYPTO PACK",&mut wordsdata,coin,ts::ctx(&mut scenario));
+           let coin = coin::mint_for_testing<SUI>(3_000_000_000, ts::ctx(&mut scenario));
+           words2words::mintPack(addr2,b"OPEN MIC NIGHT",&mut wordsdata,coin,ts::ctx(&mut scenario));
+           //words2words::mintBoosterPack(addr2,b"CRYPTO PACK",&mut wordsdata,coin,ts::ctx(&mut scenario));
            //words2words::randomly_mint_part_of_speech_words(addr2,b"nouns_3_4_letters",b"OPEN MIC NIGHT",&wordsdata,ts::ctx(&mut scenario));
            //words2words::randomly_mint_word(addr2,b"nouns_3_4_letters",&wordsdata,ts::ctx(&mut scenario));
            words2words::end_pack(b"CRYPTO PACK",&mut wordsdata,ts::ctx(&mut scenario));
