@@ -16,6 +16,7 @@ module words::words2words{
   use sui::coin::{Self,Coin};
   use sui::clock::{Self,Clock};
   use sui::kiosk::{Self,Kiosk,KioskOwnerCap};
+  use sui::table::{Self,Table};
 
   // Parts of speech are 25 groups containing the words used for poeam construction
   const PARTS_OF_SPEECH : vector<vector<u8>> = vector[b"nouns_3_4_letters",b"nouns_5_6_letters",b"nouns_7_9_letters",b"verbs_action",b"verbs_past_tense_irregular",b"verbs_linking",b"verbs_helping",b"adjectives_3_4_letters",b"adjectives_5_6_letters",b"adjectives_7_8_letters",b"adverbs_2_5_letters",b"adverbs_6_7_letters",b"adverbs_8_9_letters",b"conjunctions_coordinating",b"conjunctions_subordinating",b"pronouns_group_1",b"pronouns_group_2",b"pronouns_group_3",b"prepositions_group_1",b"prepositions_group_2",b"prepositions_group_3",b"interjections",b"suffixes",b"articles",];
@@ -188,10 +189,15 @@ module words::words2words{
   }
 
   public entry fun mintBoosterPack(pack_name: vector<u8>,kiosk: &mut Kiosk, cap: &KioskOwnerCap,wordsdata: &mut WordsData,coin: Coin<SUI>,ctx: &mut TxContext){
-    //let sender = tx_context::sender(ctx);
+    let sender = tx_context::sender(ctx);
+    let minted = df::borrow<String,Table<address,u8>>(&mut wordsdata.id,utf8(b"minted"));
+    assert!(!table::contains<address,u8>(minted,sender),0);
+    let minted_mut = df::borrow_mut<String,Table<address,u8>>(&mut wordsdata.id,utf8(b"minted"));
+    table::add<address,u8>(minted_mut,sender,1);
     internal_mint_booster_pack(pack_name,kiosk,cap,wordsdata,coin,ctx);
   }
 
+  // Functions for packs creation and configuration 
   public entry fun add_pack(pack_name: vector<u8>,price: u64,background_image: vector<u8>, pack_pos_quantity: vector<u64>,wordsdata: &mut WordsData,ctx: &mut TxContext){
     assert!(wordsdata.admin == tx_context::sender(ctx),ENotOwner);
     let parts_of_speech = vec_map::empty();
@@ -264,6 +270,11 @@ module words::words2words{
   public entry fun end_pack(pack_name: vector<u8>,wordsdata: &mut WordsData,ctx: &mut TxContext){
     assert!(wordsdata.admin == tx_context::sender(ctx) ,ENotOwner);
     df::remove<String,Pack>(&mut wordsdata.id,utf8(pack_name));
+  }
+
+  public entry fun add_list(wordsdata: &mut WordsData,ctx: &mut TxContext){
+    assert!(wordsdata.admin == tx_context::sender(ctx),ENotOwner);
+    df::add(&mut wordsdata.id,utf8(b"minted"),table::new<address,u8>(ctx));
   }
 
   fun internal_mint_pack(pack_name: vector<u8>,kiosk: &mut Kiosk, cap: &KioskOwnerCap,wordsdata: &mut WordsData,coin: Coin<SUI>,ctx: &mut TxContext){
