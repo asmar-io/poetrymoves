@@ -1,6 +1,6 @@
 
 module words::words2words{
-  use sui::object::{Self,UID};
+  use sui::object::{Self,UID,ID};
   use std::string::{String,utf8,append};
   use std::vector;
   use sui::tx_context::{Self,TxContext};
@@ -17,6 +17,7 @@ module words::words2words{
   use sui::clock::{Self,Clock};
   use sui::kiosk::{Self,Kiosk,KioskOwnerCap};
   use sui::table::{Self,Table};
+  use sui::event;
 
   // Parts of speech are 25 groups containing the words used for poeam construction
   const PARTS_OF_SPEECH : vector<vector<u8>> = vector[b"nouns_3_4_letters",b"nouns_5_6_letters",b"nouns_7_9_letters",b"verbs_action",b"verbs_past_tense_irregular",b"verbs_linking",b"verbs_helping",b"adjectives_3_4_letters",b"adjectives_5_6_letters",b"adjectives_7_8_letters",b"adverbs_2_5_letters",b"adverbs_6_7_letters",b"adverbs_8_9_letters",b"conjunctions_coordinating",b"conjunctions_subordinating",b"pronouns_group_1",b"pronouns_group_2",b"pronouns_group_3",b"prepositions_group_1",b"prepositions_group_2",b"prepositions_group_3",b"interjections",b"suffixes",b"articles",];
@@ -32,7 +33,7 @@ module words::words2words{
     beneficiary: address,
   }
 
-  struct Pack has store, drop{
+  struct Pack has store, drop {
     parts_of_speech: VecMap<String,u64>,
     words: VecMap<String,vector<String>>,
     name: String,
@@ -60,6 +61,11 @@ module words::words2words{
     parts_of_speech: vector<String>,
     words_packs: vector<String>,
     words_backgrounds: vector<String>,
+  }
+
+  struct SentenceCreated  has copy, drop {
+    sentence_id: ID,
+    words_count: u64
   }
 
   struct WORDS2WORDS has drop {}
@@ -148,7 +154,9 @@ module words::words2words{
     print(&sentence);
     let created_at = clock::timestamp_ms(clock);
     vector::destroy_empty(words);
-    Sentence {id: object::new(ctx), sentence: sentence,background_image:utf8(background),title:utf8(title),author:utf8(author),image_url:utf8(image_url),created_at:created_at, words: sentence_words,parts_of_speech: parts_of_speech,words_packs:words_packs,words_backgrounds:words_backgrounds}
+    let id = object::new(ctx);
+    event::emit( SentenceCreated{sentence_id: object::uid_to_inner(&id), words_count: vector::length(&sentence_words)});
+    Sentence {id: id, sentence: sentence,background_image:utf8(background),title:utf8(title),author:utf8(author),image_url:utf8(image_url),created_at:created_at, words: sentence_words,parts_of_speech: parts_of_speech,words_packs:words_packs,words_backgrounds:words_backgrounds}
   }
 
   /**
