@@ -68,6 +68,11 @@ module words::words2words{
     words_count: u64
   }
 
+  struct SentenceDeleted  has copy, drop {
+    sentence_id: ID,
+    words_count: u64
+  }
+
   struct WORDS2WORDS has drop {}
 
   fun init(otw: WORDS2WORDS,ctx: &mut TxContext){
@@ -166,6 +171,7 @@ module words::words2words{
 
   public entry fun sentence_to_words(sentence: Sentence,kiosk: &mut Kiosk, cap: &KioskOwnerCap,ctx: &mut TxContext) {
     let Sentence {id, sentence: _,background_image:_,title:_,author:_,image_url:_,created_at:_, words,parts_of_speech,words_packs,words_backgrounds} = sentence;
+    let words_count = vector::length(&words);
     while(!vector::is_empty<String>(&words)){
       let part_of_speech = vector::pop_back<String>(&mut parts_of_speech);
       let pack = vector::pop_back<String>(&mut words_packs);
@@ -176,6 +182,7 @@ module words::words2words{
       let word_object = Word {id: object::new(ctx), word: word, part_of_speech: part_of_speech,background:word_background,pack:pack};
       kiosk::place<Word>(kiosk,cap,word_object);
     };
+    event::emit( SentenceDeleted{sentence_id: object::uid_to_inner(&id), words_count: words_count});
     object::delete(id);
   }
   
