@@ -1,4 +1,4 @@
-# Words Sui Move Contract
+# [Poetry in motion](https://poetrymoves.us Sui Move Contract
 
 This project implements a Sui Move smart contract for minting, composing, and managing word and poem NFTs. Users can mint packs of words, create poems (sentences) from word NFTs, and decompose poems back into words. The contract supports customizable packs, special packs, and booster packs, with flexible configuration for parts of speech and word lists.
 
