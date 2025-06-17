@@ -1,5 +1,5 @@
 
-module words::words2words{
+module poetrymoves::words2words{
   use sui::object::{Self,UID,ID};
   use std::string::{String,utf8,append};
   use std::vector;
