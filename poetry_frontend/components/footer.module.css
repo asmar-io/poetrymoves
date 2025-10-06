@@ -1,0 +1,14 @@
+.footer {
+  background-image: url('../assets/images/footer_black_box.svg'); /* Replace with the path to your SVG image */
+  background-repeat: no-repeat;
+  background-size: cover;
+  background-position: center;
+  color: white;
+  height: 200px;
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  margin-top: auto;
+  justify-content: center;
+}
+/* Rest of your styles */

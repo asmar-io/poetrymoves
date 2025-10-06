@@ -1,0 +1,88 @@
+steps:
+  - name: gcr.io/cloud-builders/docker
+    id: Build
+    args:
+      - build
+      - --build-arg=FB_API_KEY
+      - --build-arg=FB_AUTH_DOMAIN
+      - --build-arg=FB_PROJECT_ID
+      - --build-arg=FB_STORAGE_BUCKET
+      - --build-arg=FB_MESSAGING_SENDER_ID
+      - --build-arg=FB_APP_ID
+      - --build-arg=FB_MEASUREMENT_ID
+      - --build-arg=POETRY_CONTRACT
+      - --build-arg=POETRY_DATA_OBJECT
+      - --cache-from
+      - >-
+        $_AR_HOSTNAME/$PROJECT_ID/cloud-run-source-deploy/$_REPO_NAME/$_SERVICE_NAME:latest
+      - -t
+      - >-
+        $_AR_HOSTNAME/$PROJECT_ID/cloud-run-source-deploy/$_REPO_NAME/$_SERVICE_NAME:latest
+      - ./
+      - -f
+      - ./Dockerfile
+    secretEnv:
+      [
+        FB_API_KEY,
+        FB_AUTH_DOMAIN,
+        FB_PROJECT_ID,
+        FB_STORAGE_BUCKET,
+        FB_MESSAGING_SENDER_ID,
+        FB_APP_ID,
+        FB_MEASUREMENT_ID,
+        POETRY_CONTRACT,
+        POETRY_DATA_OBJECT,
+      ]
+  - name: gcr.io/cloud-builders/docker
+    id: Push
+    args:
+      - push
+      - >-
+        $_AR_HOSTNAME/$PROJECT_ID/cloud-run-source-deploy/$_REPO_NAME/$_SERVICE_NAME:latest
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
+    id: Deploy
+    args:
+      - run
+      - services
+      - update
+      - $_SERVICE_NAME
+      - --platform=managed
+      - >-
+        --image=$_AR_HOSTNAME/$PROJECT_ID/cloud-run-source-deploy/$_REPO_NAME/$_SERVICE_NAME:latest
+      - >-
+        --labels=managed-by=gcp-cloud-build-deploy-cloud-run,commit-sha=$COMMIT_SHA,gcb-build-id=$BUILD_ID,gcb-trigger-id=$_TRIGGER_ID
+      - --region=$_DEPLOY_REGION
+      - --quiet
+    entrypoint: gcloud
+
+options:
+  machineType: E2_HIGHCPU_32
+
+availableSecrets:
+  secretManager:
+    - versionName: projects/341236745556/secrets/firebase_web_api_key/versions/latest
+      env: FB_API_KEY
+    - versionName: projects/341236745556/secrets/firebase_auth_domain/versions/latest
+      env: FB_AUTH_DOMAIN
+    - versionName: projects/341236745556/secrets/firebase_project_id/versions/latest
+      env: FB_PROJECT_ID
+    - versionName: projects/341236745556/secrets/firebase_storage_bucket/versions/latest
+      env: FB_STORAGE_BUCKET
+    - versionName: projects/341236745556/secrets/firebase_messaging_sender_id/versions/latest
+      env: FB_MESSAGING_SENDER_ID
+    - versionName: projects/341236745556/secrets/firebase_app_id/versions/latest
+      env: FB_APP_ID
+    - versionName: projects/341236745556/secrets/firebase_measurement_id/versions/latest
+      env: FB_MEASUREMENT_ID
+    - versionName: projects/341236745556/secrets/poetry_contract_dev/versions/latest
+      env: POETRY_CONTRACT
+    - versionName: projects/341236745556/secrets/poetry_data_object_dev/versions/latest
+      env: POETRY_DATA_OBJECT
+
+images:
+  - >-
+    $_AR_HOSTNAME/$PROJECT_ID/cloud-run-source-deploy/$_REPO_NAME/$_SERVICE_NAME:latest
+tags:
+  - gcp-cloud-build-deploy-cloud-run
+  - gcp-cloud-build-deploy-cloud-run-managed
+  - pim-frontend

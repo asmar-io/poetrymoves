@@ -1,0 +1,42 @@
+/* PersonalDataTable.module.css */
+
+/* Style the table */
+.table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+/* Style the table headers */
+.table th {
+  background-color: #f2f2f2;
+  padding: 10px;
+  border: 1px solid #dddddd;
+  text-align: left;
+}
+
+/* Style the table rows */
+.table tr {
+  border-bottom: 1px solid #dddddd;
+}
+
+/* Style the table data cells */
+.table td {
+  padding: 10px;
+  border: 1px solid #dddddd;
+}
+
+/* Style the unordered lists within table data cells */
+.table td ul {
+  list-style-type: disc;
+  padding-left: 20px;
+}
+.bulletList {
+  list-style-type: disc; /* Use disc-style bullets */
+  margin-left: 20px; /* Add left margin for the main bullet list */
+}
+
+/* Style for sub-bullet lists */
+.subBulletList {
+  list-style-type: circle; /* Use circle-style bullets for sublists */
+  margin-left: 20px; /* Add left margin for sub-bullet lists */
+}
